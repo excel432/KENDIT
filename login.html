@@ -103,21 +103,23 @@
     <p class="error" id="errorMsg">Invalid email or password</p>
   </div>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+  import { initializeApp } from "...";
+  import { getAuth, signInWithEmailAndPassword } from "...";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCcCUNo_Fe6nYRkQCCfcYzPbF4_8YJQOfg",
-    authDomain: "vantage-trading-exchange.firebaseapp.com",
-    projectId: "vantage-trading-exchange",
-    storageBucket: "vantage-trading-exchange.firebasestorage.app",
-    messagingSenderId: "379005808101",
-    appId: "1:379005808101:web:b6a994e0d4630ade8d130c",
-    measurementId: "G-5J31HW30GT"
-  };
-
+  const firebaseConfig = { ... };
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+
+  window.togglePassword = function (fieldId, el) {
+    const field = document.getElementById(fieldId);
+    if (field.type === "password") {
+      field.type = "text";
+      el.textContent = "Hide";
+    } else {
+      field.type = "password";
+      el.textContent = "Show";
+    }
+  };
 
   window.loginUser = function () {
     const email = document.getElementById("email").value;
