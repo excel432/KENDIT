@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Vantage Trading Exchange</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: white; font-family: Arial, sans-serif; }
+    .box {
+      background: #161616; border: 1px solid #2a2a2a; padding: 40px;
+      max-width: 450px; margin: 60px auto; border-radius: 4px;
+    }
+    h2 { color: #c9a84c; margin-bottom: 20px; }
+    label {
+      display: block; font-size: 0.8rem; color: #888;
+      margin-bottom: 6px; margin-top: 18px; text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    input, select {
+      width: 100%; background: #111; border: 1px solid #2a2a2a;
+      color: white; padding: 12px; border-radius: 3px; font-size: 0.95rem;
+    }
+    button {
+      width: 100%; background: #c9a84c; color: black; padding: 12px;
+      border: none; border-radius: 3px; font-weight: bold;
+      font-size: 1rem; cursor: pointer; margin-top: 20px;
+    }
+    button:hover { background: #e2c87a; }
+    .msg { margin-top: 15px; font-size: 0.85rem; display: none; }
+    .msg.error { color: #e05252; }
+    .msg.success { color: #4caf50; }
+    #adminPanel { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="box" id="loginBox">
+    <h2>Admin Login</h2>
+    <label>Email</label>
+    <input type="email" id="adminEmail" placeholder="Admin email">
+    <label>Password</label>
+    <input type="password" id="adminPassword" placeholder="Password">
+    <button onclick="adminLogin()">Sign In</button>
+    <p class="msg error" id="loginError">Invalid login or not authorized as admin</p>
+  </div>
+
+  <div class="box" id="adminPanel">
+    <h2>Update Client Balance</h2>
+
+    <label>Client Email</label>
+    <input type="email" id="clientEmail" placeholder="client@example.com">
+
+    <label>Total Invested ($)</label>
+    <input type="number" id="totalInvested" placeholder="0.00">
+
+    <label>Total Returns ($)</label>
+    <input type="number" id="totalReturns" placeholder="0.00">
+
+    <label>Active Plans</label>
+    <input type="number" id="activePlans" placeholder="0">
+
+    <h2 style="margin-top:30px;">Add a Payment Record</h2>
+
+    <label>Amount ($)</label>
+    <input type="number" id="paymentAmount" placeholder="0.00">
+
+    <label>Plan Name</label>
+    <input type="text" id="paymentPlan" placeholder="e.g. Growth Plan">
+
+    <label>Status</label>
+    <select id="paymentStatus">
+      <option value="active">Active</option>
+      <option value="pending">Pending</option>
+    </select>
+
+    <button onclick="saveClientData()">Save Changes</button>
+    <p class="msg success" id="saveSuccess">Saved successfully!</p>
+    <p class="msg error" id="saveError">Something went wrong. Try again.</p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCcCUNo_Fe6nYRkQCCfcYzPbF4_8YJQOfg",
+      authDomain: "vantage-trading-exchange.firebaseapp.com",
+      projectId: "vantage-trading-exchange",
+      storageBucket: "vantage-trading-exchange.firebasestorage.app",
+      messagingSenderId: "379005808101",
+      appId: "1:379005808101:web:b6a994e0d4630ade8d130c",
+      measurementId: "G-5J31HW30GT"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const ADMIN_EMAILS = ["admin@vantage.com"];
+
+    window.adminLogin = function () {
+      const email = document.getElementById("adminEmail").value;
+      const password = document.getElementById("adminPassword").value;
+      const loginError = document.getElementById("loginError");
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((result) => {
+          if (!ADMIN_EMAILS.includes(result.user.email)) {
+            loginError.textContent = "This account is not authorized as admin";
+            loginError.style.display = "block";
+            signOut(auth);
+            return;
+          }
+          document.getElementById("loginBox").style.display = "none";
+          document.getElementById("adminPanel").style.display = "block";
+        })
+        .catch(() => {
+          loginError.textContent = "Invalid login";
+          loginError.style.display = "block";
+        });
+    };
+
+    window.saveClientData = async function () {
+      const clientEmail = document.getElementById("clientEmail").value.trim();
+      const totalInvested = parseFloat(document.getElementById("totalInvested").value) || 0;
+      const totalReturns = parseFloat(document.getElementById("totalReturns").value) || 0;
+      const activePlans = parseInt(document.getElementById("activePlans").value) || 0;
+
+      const paymentAmount = parseFloat(document.getElementById("paymentAmount").value);
+      const paymentPlan = document.getElementById("paymentPlan").value.trim();
+      const paymentStatus = document.getElementById("paymentStatus").value;
+
+      const successMsg = document.getElementById("saveSuccess");
+      const errorMsg = document.getElementById("saveError");
+      successMsg.style.display = "none";
+      errorMsg.style.display = "none";
+
+      if (!clientEmail) {
+        errorMsg.textContent = "Please enter the client's email";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      try {
+        const docRef = doc(db, "clientData", clientEmail);
+
+        const updateData = {
+          totalInvested: totalInvested,
+          totalReturns: totalReturns,
+          activePlans: activePlans
+        };
+
+        if (paymentAmount) {
+          updateData.payments = arrayUnion({
+            date: new Date().toISOString().split("T")[0],
+            amount: paymentAmount,
+            plan: paymentPlan || "N/A",
+            status: paymentStatus
+          });
+        }
+
+        await setDoc(docRef, updateData, { merge: true });
+
+        successMsg.style.display = "block";
+      } catch (err) {
+        errorMsg.textContent = "Error: " + err.message;
+        errorMsg.style.display = "block";
+      }
+    };
+  </script>
+</body>
+</html>
+
+
+
